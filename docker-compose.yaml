@@ -1,0 +1,14 @@
+version: "3.1"
+
+services:
+  PostgreSQL:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: "alvaro"
+      POSTGRES_USER: "alvaro"
+      POSTGRES_DB: "exa"
+      POSTGRES_HOST: "postgresql"
+      POSTGRES_PORT: "5432"
+
