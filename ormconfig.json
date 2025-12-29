@@ -1,0 +1,18 @@
+{
+  "type": "postgres",
+  "host": "${DB_HOST:localhost}",
+  "port": "${DB_PORT:5432}",
+  "username": "${DB_USERNAME:alvaro}",
+  "password": "${DB_PASSWORD:alvaro}",
+  "database": "${DB_DATABASE:exa}",
+  "entities": ["src/**/*.entity.ts"],
+  "migrations": ["src/database/migrations/*.ts"],
+  "cli": {
+    "entitiesDir": "src/entities",
+    "migrationsDir": "src/database/migrations"
+  },
+  "synchronize": false,
+  "logging": true,
+  "migrationsRun": true
+}
+

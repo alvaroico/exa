@@ -6,16 +6,21 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Get hello message' })
+  @Get('/health')
+  @ApiOperation({ summary: 'Health check - Database connection' })
   @ApiResponse({
     status: 200,
-    description: 'Returns a hello message',
+    description: 'Database connection status',
     schema: {
-      example: 'Hello World!',
+      example: {
+        status: 'UP',
+        database: 'PostgreSQL',
+        timestamp: '2024-12-29T20:30:00.000Z',
+        responseTime: '5ms',
+      },
     },
   })
-  getHello(): string {
-    return this.appService.getHello();
+  async healthCheck(): Promise<any> {
+    return this.appService.healthCheck();
   }
 }
