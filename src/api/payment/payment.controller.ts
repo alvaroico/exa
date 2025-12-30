@@ -3,25 +3,78 @@ import {
   Get,
   Post,
   Put,
-  Delete,
   Body,
   Param,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiExtraModels,
+} from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 import { Payment, PaymentMethod } from '../../entities/payment.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { CreatePaymentPixDto } from './dto/create-payment-pix.dto';
+import { CreatePaymentCreditCardDto } from './dto/create-payment-credit-card.dto';
 
 @ApiTags('Payment')
+@ApiExtraModels(CreatePaymentPixDto, CreatePaymentCreditCardDto)
 @Controller('api/payment')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Adicionar Pagamento' })
-  @ApiResponse({ status: 201, description: 'Pagamento criado com sucesso' })
+  @ApiOperation({
+    summary: 'Adicionar Pagamento',
+    description:
+      'Cria um novo pagamento. Pode ser via PIX ou CREDIT_CARD. CPF deve ser válido.',
+  })
+  @ApiBody({
+    type: CreatePaymentDto,
+    examples: {
+      PIX: {
+        summary: 'Exemplo com PIX',
+        description: 'Pagamento via PIX',
+        value: {
+          cpf: '12345678901',
+          description: 'Pagamento de fatura',
+          amount: 150.5,
+          paymentMethod: 'PIX',
+        } as CreatePaymentPixDto,
+      },
+      CREDIT_CARD: {
+        summary: 'Exemplo com CREDIT_CARD',
+        description: 'Pagamento via Cartão de Crédito',
+        value: {
+          cpf: '98765432100',
+          description: 'Compra online',
+          amount: 299.99,
+          paymentMethod: 'CREDIT_CARD',
+        } as CreatePaymentCreditCardDto,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Pagamento criado com sucesso',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        cpf: '12345678901',
+        description: 'Pagamento de fatura',
+        amount: '150.50',
+        paymentMethod: 'PIX',
+        status: 'PENDING',
+        createdAt: '2025-12-29T20:30:00.000Z',
+        updatedAt: '2025-12-29T20:30:00.000Z',
+      },
+    },
+  })
   async create(@Body() createPaymentDto: CreatePaymentDto): Promise<Payment> {
     return this.paymentService.create(
       createPaymentDto.cpf,
@@ -44,24 +97,53 @@ export class PaymentController {
   @Get(':id')
   @ApiOperation({ summary: 'Buscar Pagamento por ID' })
   @ApiResponse({ status: 200, description: 'Pagamento encontrado' })
-  async findOne(@Param('id') id: string): Promise<Payment | null> {
+  @ApiResponse({ status: 400, description: 'ID inválido' })
+  @ApiResponse({ status: 404, description: 'Pagamento não localizado' })
+  async findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<Payment> {
     return this.paymentService.findOne(id);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Atualizar Pagamento' })
+  @ApiOperation({
+    summary: 'Atualizar Pagamento',
+    description:
+      'Atualiza o status de um pagamento existente. Apenas o status pode ser alterado.',
+  })
+  @ApiBody({
+    description: 'Dados de atualização do pagamento',
+    examples: {
+      PAID: {
+        summary: 'Marcar como PAID',
+        description: 'Atualiza o status do pagamento para PAID (Pago)',
+        value: {
+          status: 'PAID',
+        },
+      },
+      FAIL: {
+        summary: 'Marcar como FAIL',
+        description: 'Atualiza o status do pagamento para FAIL (Falha)',
+        value: {
+          status: 'FAIL',
+        },
+      },
+      PENDING: {
+        summary: 'Marcar como PENDING',
+        description: 'Atualiza o status do pagamento para PENDING (Pendente)',
+        value: {
+          status: 'PENDING',
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: 'Pagamento atualizado' })
+  @ApiResponse({ status: 400, description: 'ID inválido ou status inválido' })
+  @ApiResponse({ status: 404, description: 'Pagamento não localizado' })
   async update(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() updatePaymentDto: UpdatePaymentDto,
-  ): Promise<Payment | null> {
+  ): Promise<Payment> {
     return this.paymentService.update(id, updatePaymentDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Deletar Pagamento' })
-  @ApiResponse({ status: 200, description: 'Pagamento deletado' })
-  async delete(@Param('id') id: string): Promise<void> {
-    return this.paymentService.delete(id);
   }
 }

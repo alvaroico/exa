@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -49,19 +49,21 @@ export class PaymentService {
     return query.orderBy('payment.createdAt', 'DESC').getMany();
   }
 
-  async findOne(id: string): Promise<Payment | null> {
-    return this.paymentsRepository.findOne({ where: { id } });
+  async findOne(id: string): Promise<Payment> {
+    const payment = await this.paymentsRepository.findOne({ where: { id } });
+    if (!payment) {
+      throw new NotFoundException(`Pagamento com ID ${id} não foi localizado`);
+    }
+    return payment;
   }
 
-  async update(
-    id: string,
-    updateData: Partial<Payment>,
-  ): Promise<Payment | null> {
+  async update(id: string, updateData: Partial<Payment>): Promise<Payment> {
+    // Verifica se o pagamento existe
+    const payment = await this.paymentsRepository.findOne({ where: { id } });
+    if (!payment) {
+      throw new NotFoundException(`Pagamento com ID ${id} não foi localizado`);
+    }
     await this.paymentsRepository.update(id, updateData);
     return this.findOne(id);
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.paymentsRepository.delete(id);
   }
 }

@@ -59,9 +59,35 @@ export class CreatePaymentsTable1704067200000 implements MigrationInterface {
       }),
       true,
     );
+
+    // Criar trigger para impedir exclusão de pagamentos com status PAID
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION prevent_paid_payment_deletion()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF OLD.status = 'PAID' THEN
+          RAISE EXCEPTION 'Não é possível deletar um pagamento com status PAID';
+        END IF;
+        RETURN OLD;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    await queryRunner.query(`
+      CREATE TRIGGER prevent_delete_paid_payment
+      BEFORE DELETE ON payments
+      FOR EACH ROW
+      EXECUTE FUNCTION prevent_paid_payment_deletion();
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS prevent_delete_paid_payment ON payments`,
+    );
+    await queryRunner.query(
+      `DROP FUNCTION IF EXISTS prevent_paid_payment_deletion()`,
+    );
     await queryRunner.dropTable('payments');
   }
 }

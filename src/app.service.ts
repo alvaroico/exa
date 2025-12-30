@@ -10,11 +10,7 @@ interface HealthCheckResponse {
 
 @Injectable()
 export class AppService {
-  constructor(private dataSource: DataSource) {}
-
-  getHello(): string {
-    return 'API de Cobranças';
-  }
+  constructor(private readonly dataSource: DataSource) {}
 
   async healthCheck(): Promise<HealthCheckResponse> {
     const startTime = Date.now();
