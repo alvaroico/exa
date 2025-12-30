@@ -70,7 +70,8 @@ export class PaymentService {
           preferenceId: mercadoPagoResult.preferenceId,
           checkoutUrl: mercadoPagoResult.checkoutUrl,
           status: 'pending',
-          rawResponse: mercadoPagoResult.rawResponse as unknown,
+          transactionId: mercadoPagoResult.preferenceId,
+          rawResponse: mercadoPagoResult.rawResponse,
         });
       } catch (error) {
         console.error('Erro ao criar preferência no Mercado Pago:', error);

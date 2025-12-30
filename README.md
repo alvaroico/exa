@@ -1,194 +1,393 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# API de Cobranças – Integração com Mercado Pago
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST construída com NestJS para gerenciar o ciclo de vida de cobranças (pagamentos) com PostgreSQL/TypeORM e integração com o Mercado Pago para pagamentos via PIX e Cartão de Crédito.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Visão Geral
 
-## Description
+Esta API permite:
 
-API de Cobranças - Sistema de gerenciamento de pagamentos com integração ao Mercado Pago.
+- Criar pagamentos via **PIX** ou **CREDIT_CARD** (`POST /api/payment`).
+- Listar pagamentos com filtros por **CPF** e **paymentMethod** (`GET /api/payment`).
+- Buscar pagamento por ID (`GET /api/payment/:id`).
+- Atualizar o status de um pagamento (`PUT /api/payment/:id`).
+- Integrar com o **Mercado Pago Checkout** (preferências) para pagamentos com cartão.
+- Receber **webhooks** do Mercado Pago para atualizar o status do pagamento.
+- Consultar o **health check** da aplicação e do banco.
 
-## Tecnologias
+Principais tecnologias:
 
-- [NestJS](https://nestjs.com/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [PostgreSQL](https://www.postgresql.org/)
-- [TypeORM](https://typeorm.io/)
-- [Mercado Pago API](https://www.mercadopago.com.br/developers)
+- **NestJS** (Node.js + TypeScript)
+- **PostgreSQL** + **TypeORM**
+- **Mercado Pago API** (Preferences + Webhooks)
+- **Swagger / OpenAPI** para documentação automática
 
-## Project setup
+---
+
+## Arquitetura
+
+### Módulos principais
+
+- `AppModule`
+  - Configuração principal da aplicação NestJS.
+  - Configuração do TypeORM e conexão com PostgreSQL.
+  - Registro do módulo de pagamentos.
+
+- `PaymentModule` (`src/api/payment`)
+  - `PaymentController`
+    - Exposição dos endpoints REST sob `/api/payment`.
+  - `PaymentService`
+    - Regras de negócio de pagamento.
+    - Criação, listagem, busca e atualização de pagamentos.
+    - Integração com o `MercadoPagoService` quando `paymentMethod = CREDIT_CARD`.
+  - `PaymentWebhookController`
+    - Recebe notificações do Mercado Pago em `/api/payment/webhook`.
+    - Processa eventos (ex.: `payment.created`, `merchant_order`) e atualiza o status do pagamento.
+
+- `MercadoPagoModule` (`src/external/mercado-pago`)
+  - `MercadoPagoService`
+    - Responsável por chamar a API do Mercado Pago.
+    - Cria **preferences** de checkout (endpoint `/checkout/preferences`).
+    - Usa `external_reference` para vincular o pagamento interno ao Mercado Pago.
+
+### Entidades e Banco de Dados
+
+- `Payment` (`src/entities/payment.entity.ts`)
+  - `id` (UUID)
+  - `cpf` (string, validado por util CPF)
+  - `description` (string)
+  - `amount` (number)
+  - `paymentMethod` (enum: `PIX` | `CREDIT_CARD`)
+  - `status` (enum: `PENDING` | `PAID` | `FAIL`)
+  - `createdAt` / `updatedAt`
+
+- `MercadoPago` (`src/entities/mercado-pago.entity.ts`)
+  - Relaciona um `Payment` com dados da integração Mercado Pago
+  - Campos como `paymentId`, `preferenceId`, `checkoutUrl`, `status`, `transactionId` e `rawResponse` da preferência criada.
+
+Migrações principais (em `src/database/migrations`):
+
+- `1704067200001-CreatePaymentsTable.ts`
+- `1704067200002-CreateMercadoPagoTable.ts`
+
+O acesso ao banco é feito via TypeORM, configurado em `ormconfig.json` e `src/data-source.ts`/`src/database/config.ts`.
+
+---
+
+## Fluxo de Pagamento
+
+### 1. Criação do pagamento
+
+1. Cliente chama `POST /api/payment` com `cpf`, `description`, `amount` e `paymentMethod`.
+2. A API cria um registro na tabela `payments` com status `PENDING`.
+3. Se `paymentMethod = CREDIT_CARD`:
+   - O `PaymentService` chama o `MercadoPagoService.createPreference`.
+   - Uma **preference** é criada no Mercado Pago com:
+     - `external_reference = id` do pagamento interno.
+     - `back_urls` apontando para `/api/payment/success`, `/failure` e `/pending`.
+     - `notification_url` apontando para `/api/payment/webhook`.
+   - A API persiste os dados na tabela `mercado_pago` (incluindo `checkoutUrl` e `rawResponse`).
+4. A resposta da API inclui os dados do pagamento e, quando aplicável, a `checkoutUrl` para redirecionar o usuário ao Mercado Pago.
+
+### 2. Pagamento do usuário
+
+- O consumidor (front-end, Postman, etc.) redireciona o usuário para a `checkoutUrl` retornada.
+- O usuário finaliza (ou não) o pagamento no Mercado Pago.
+
+### 3. Webhook do Mercado Pago
+
+- O Mercado Pago envia eventos para `POST {BACKEND_URL}/api/payment/webhook`.
+- O `PaymentWebhookController`:
+  - Lê o evento (por exemplo, `type: payment`, `data.id` ou `topic: payment`).
+  - Consulta detalhes do pagamento na API do Mercado Pago (`/v1/payments/:id` ou `merchant_orders/:id`).
+  - Usa o `external_reference` para localizar o `Payment` interno.
+  - Atualiza o status interno para `PAID`, `FAIL` ou mantém `PENDING` conforme o status retornado.
+
+---
+
+## Setup do Projeto
+
+### Pré-requisitos
+
+- **Node.js** LTS
+- **npm** (ou outro gerenciador, mas o projeto usa npm)
+- **PostgreSQL** instalado e em execução
+- Conta no **Mercado Pago**
+- (Opcional) **ngrok** para testar webhooks localmente
+- (Opcional) **Docker** e **Docker Compose**
+
+### Instalação
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Configuração do Mercado Pago
+### Variáveis de Ambiente
 
-### Opção 1: Criar Usuário de Teste (Recomendado)
+Crie o arquivo `.env` a partir do template:
 
-1. **Obtenha um Access Token de PRODUÇÃO:**
-   - Acesse: https://www.mercadopago.com.br/developers/panel/app
-   - Faça login com sua conta real do Mercado Pago
-   - Crie uma aplicação ou use uma existente
-   - Copie o **"Access Token de produção"** (começa com `APP_USR-`)
+```bash
+cp .env.example .env
+```
 
-2. **Configure o token temporariamente no .env:**
+Configure pelo menos:
+
+```bash
+# Banco de dados
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
+DB_NAME=exa
+
+# URL pública do backend (usada nas back_urls e webhook)
+BACKEND_URL=http://localhost:3000
+
+# Token de acesso do Mercado Pago (teste ou produção)
+MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-aqui
+```
+
+> Em ambiente local com webhooks, atualize `BACKEND_URL` para a URL pública do ngrok (ex.: `https://xxxxx.ngrok-free.app`).
+
+### Configuração do Mercado Pago
+
+Você pode seguir duas abordagens:
+
+#### Opção 1 – Usuário de teste (recomendado)
+
+1. Obtenha um **Access Token de produção** no painel de desenvolvedor do Mercado Pago.
+2. Configure temporariamente no `.env`:
    ```bash
-   MERCADO_PAGO_ACCESS_TOKEN=APP_USR-seu-token-de-producao-aqui
+   MERCADO_PAGO_ACCESS_TOKEN=APP_USR-seu-token-de-producao
    ```
-
-3. **Execute o script para criar usuário de teste:**
+3. Execute o script para criar usuário de teste:
    ```bash
    npm run mp:create-test-user
    ```
-   
-   O script irá:
-   - Criar um usuário de teste no Mercado Pago
-   - Mostrar as credenciais (email e senha)
-   - Salvar as credenciais em um arquivo JSON
-
-4. **Faça login com o usuário de teste:**
-   - Acesse: https://www.mercadopago.com.br/developers/panel/app
-   - Use o email e senha gerados pelo script
-   - Crie uma aplicação de teste
-   - Copie o **"Access Token de teste"** (começa com `TEST-`)
-
-5. **Atualize o .env com o token de teste:**
+4. O script retorna email e senha do usuário de teste.
+5. Faça login como usuário de teste, crie uma aplicação e copie o **Access Token de teste** (`TEST-...`).
+6. Atualize o `.env` com:
    ```bash
-   MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-de-teste-aqui
+   MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-de-teste
    ```
 
-### Opção 2: Usar Token Direto (Não Recomendado para Produção)
+#### Opção 2 – Usar token de teste direto
 
-Se você preferir pular a criação de usuário de teste:
+1. Crie uma aplicação no painel.
+2. Copie o `Access Token de teste`.
+3. Configure no `.env` diretamente.
 
-1. Acesse: https://www.mercadopago.com.br/developers/panel/app
-2. Crie uma aplicação
-3. Copie o "Access Token de teste"
-4. Configure no `.env`:
-   ```bash
-   MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-aqui
-   ```
+### Banco de Dados e Migrações
 
-### Guia Completo
-
-Para mais detalhes, consulte: [MERCADO_PAGO_SETUP.md](./MERCADO_PAGO_SETUP.md)
-
-## Database Setup
-
-1. **Crie o banco de dados:**
-   ```bash
-   createdb exa
-   ```
-
-2. **Configure o .env:**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edite o `.env` e configure suas credenciais do PostgreSQL.
-
-3. **Execute as migrações:**
-   ```bash
-   npm run build
-   npm run migration:run
-   ```
-
-## Compile and run the project
+Crie o banco de dados e rode as migrações:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+createdb exa
+npm run build
+npm run migration:run
 ```
 
-## API Documentation
+---
 
-Com o servidor rodando, acesse a documentação do Swagger:
+## Executando o Projeto
 
-```
-http://localhost:3000/api
-```
-
-## Endpoints
-
-- `POST /api/payment` - Criar pagamento
-- `GET /api/payment` - Listar pagamentos
-- `GET /api/payment/:id` - Buscar pagamento por ID
-- `PUT /api/payment/:id` - Atualizar pagamento
-- `GET /health` - Health check
-
-## Run tests
+### Ambiente de desenvolvimento
 
 ```bash
-# unit tests
-$ npm run test
+# modo desenvolvimento (watch)
+npm run start:dev
 
-# e2e tests
-$ npm run test:e2e
+# modo padrão
+npm run start
 
-# test coverage
-$ npm run test:cov
+# modo produção
+npm run build
+npm run start:prod
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Testes
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# testes unitários
+npm run test
+
+# testes end-to-end
+npm run test:e2e
+
+# cobertura de testes
+npm run test:cov
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Docker / Docker Compose
 
-## Resources
+Se você preferir rodar com Docker:
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+# subir serviços (API + banco)
+docker compose up
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Certifique-se de que o `docker-compose.yaml` está configurado com as mesmas variáveis de ambiente do `.env` ou de um `env_file`.
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Documentação da API (Swagger)
 
-## Stay in touch
+Com a aplicação rodando, acesse:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```text
+http://localhost:3000/swagger
+```
 
-## License
+A interface do Swagger exibe todos os endpoints, DTOs, enums e exemplos configurados no código.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+## Endpoints Principais
+
+### Pagamentos – `/api/payment`
+
+#### `POST /api/payment` – Criar pagamento
+
+Cria um novo pagamento.
+
+Campos comuns:
+
+- `cpf` (string, apenas dígitos, validado via util de CPF)
+- `description` (string)
+- `amount` (number)
+- `paymentMethod` (string: `PIX` ou `CREDIT_CARD`)
+
+Exemplo – pagamento PIX:
+
+```json
+{
+  "cpf": "22233344405",
+  "description": "Pagamento via PIX",
+  "amount": 150.0,
+  "paymentMethod": "PIX"
+}
+```
+
+Exemplo – pagamento com Cartão de Crédito:
+
+```json
+{
+  "cpf": "22233344405",
+  "description": "Compra online",
+  "amount": 299.99,
+  "paymentMethod": "CREDIT_CARD"
+}
+```
+
+Resposta (exemplo simplificado):
+
+```json
+{
+  "id": "c0719f81-9711-487d-a5c9-3d7b42f3953d",
+  "cpf": "22233344405",
+  "description": "Compra online",
+  "amount": 299.99,
+  "paymentMethod": "CREDIT_CARD",
+  "status": "PENDING",
+  "checkoutUrl": "https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=...",
+  "createdAt": "2025-12-30T10:28:06.556Z",
+  "updatedAt": "2025-12-30T10:28:06.556Z"
+}
+```
+
+> Para `PIX`, o comportamento padrão é manter o status em `PENDING` e apenas registrar o pagamento no banco.
+
+#### `GET /api/payment` – Listar pagamentos
+
+Parâmetros de query opcionais:
+
+- `cpf`: filtra por CPF
+- `paymentMethod`: `PIX` ou `CREDIT_CARD`
+
+Exemplo:
+
+```text
+GET /api/payment?cpf=22233344405&paymentMethod=CREDIT_CARD
+```
+
+#### `GET /api/payment/:id` – Buscar pagamento por ID
+
+Retorna os detalhes de um pagamento específico.
+
+- `id` deve ser um UUID válido.
+- Se não encontrado ou se o formato do `id` for inválido, a API retorna erro com mensagem padronizada.
+
+#### `PUT /api/payment/:id` – Atualizar pagamento
+
+Atualiza informações de um pagamento, como o `status`.
+
+Exemplo de body:
+
+```json
+{
+  "status": "PAID"
+}
+```
+
+> Existe uma regra de negócio que impede, por exemplo, exclusão de pagamentos `PAID`. As validações de status seguem a regra de domínio implementada no `PaymentService`.
+
+> A rota de **DELETE** de pagamento foi removida para manter o histórico de transações.
+
+### Webhooks e Callbacks – `/api/payment`
+
+#### `POST /api/payment/webhook`
+
+Endpoint usado como `notification_url` no Mercado Pago.
+
+- Recebe eventos como `payment.created`, `merchant_order`, etc.
+- Usa os dados do evento para consultar a API do Mercado Pago e descobrir:
+  - Status do pagamento.
+  - `external_reference` (id do pagamento interno).
+- Atualiza o status do pagamento interno (`PENDING`, `PAID`, `FAIL`).
+
+#### `POST /api/payment/success`
+#### `POST /api/payment/failure`
+#### `POST /api/payment/pending`
+
+Endpoints usados como `back_urls` no Mercado Pago:
+
+- `success`: chamado quando o pagamento é aprovado.
+- `failure`: chamado quando o pagamento é rejeitado.
+- `pending`: chamado quando o pagamento fica pendente.
+
+Normalmente são usados para redirecionar o usuário no front-end, mas aqui também podem registrar logs ou atualizar algum estado adicional.
+
+### Health Check – `/health`
+
+#### `GET /health`
+
+- Verifica se a aplicação está ativa e se a conexão com o banco está funcional.
+- Retorna um JSON com status da aplicação e tempo de execução da checagem.
+
+---
+
+## Boas Práticas e Observações
+
+- **Validação de CPF**:
+  - O projeto possui um util de validação em `src/utils/cpf.validator.ts` que implementa a regra matemática dos dígitos verificadores.
+  - Sempre envie o CPF sem máscara (somente dígitos).
+
+- **Status de Pagamento**:
+  - `PENDING`: pagamento criado, aguardando processamento.
+  - `PAID`: pagamento aprovado.
+  - `FAIL`: pagamento rejeitado ou com erro.
+
+- **Mercado Pago – Sandbox x Produção**:
+  - Use tokens de teste (`TEST-...`) em desenvolvimento.
+  - Use ngrok (ou semelhante) para expor `BACKEND_URL` e testar webhooks.
+  - Não exponha `MERCADO_PAGO_ACCESS_TOKEN` em repositórios públicos.
+
+- **Segurança**:
+  - Considere adicionar autenticação (API key/JWT) em produção.
+  - Habilite HTTPS no ambiente produtivo.
+
+---
+
+## Licença
+
+Este projeto segue a licença MIT (mesma licença padrão do NestJS).
