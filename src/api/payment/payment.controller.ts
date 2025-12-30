@@ -10,11 +10,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
-import {
-  Payment,
-  PaymentMethod,
-  PaymentStatus,
-} from '../../entities/payment.entity';
+import { Payment, PaymentMethod } from '../../entities/payment.entity';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 @ApiTags('Payment')
 @Controller('api/payment')
@@ -24,20 +22,12 @@ export class PaymentController {
   @Post()
   @ApiOperation({ summary: 'Adicionar Pagamento' })
   @ApiResponse({ status: 201, description: 'Pagamento criado com sucesso' })
-  async create(
-    @Body()
-    body: {
-      cpf: string;
-      description: string;
-      amount: number;
-      paymentMethod: PaymentMethod;
-    },
-  ): Promise<Payment> {
+  async create(@Body() createPaymentDto: CreatePaymentDto): Promise<Payment> {
     return this.paymentService.create(
-      body.cpf,
-      body.description,
-      body.amount,
-      body.paymentMethod,
+      createPaymentDto.cpf,
+      createPaymentDto.description,
+      createPaymentDto.amount,
+      createPaymentDto.paymentMethod,
     );
   }
 
@@ -63,9 +53,9 @@ export class PaymentController {
   @ApiResponse({ status: 200, description: 'Pagamento atualizado' })
   async update(
     @Param('id') id: string,
-    @Body() body: { status?: PaymentStatus },
+    @Body() updatePaymentDto: UpdatePaymentDto,
   ): Promise<Payment | null> {
-    return this.paymentService.update(id, body);
+    return this.paymentService.update(id, updatePaymentDto);
   }
 
   @Delete(':id')
