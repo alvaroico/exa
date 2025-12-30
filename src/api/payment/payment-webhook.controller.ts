@@ -50,8 +50,7 @@ export class PaymentWebhookController {
     @Query('id') paymentId?: string,
     @Query('topic') topic?: string,
   ): Promise<{ message: string }> {
-    this.logger.log(`Webhook recebido - body: ${JSON.stringify(body)}`);
-    this.logger.log(`Query params - id: ${paymentId}, topic: ${topic}`);
+    this.logger.log(`Webhook recebido - topic: ${topic ?? 'undefined'}`);
 
     // Trata webhook completo de pagamento
     if (this._isPaymentWebhook(body)) {

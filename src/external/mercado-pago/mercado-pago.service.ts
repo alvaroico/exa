@@ -123,18 +123,6 @@ export class MercadoPagoService {
           ),
       );
 
-      // LOG DETALHADO DO RETORNO DO MERCADO PAGO
-      this.logger.log(
-        `Resposta bruta do Mercado Pago para pagamento ${paymentId}: ${JSON.stringify(
-          response.data,
-        )}`,
-      );
-      // eslint-disable-next-line no-console
-      console.log(
-        'MercadoPago createPreference response.data =',
-        response.data,
-      );
-
       const checkoutUrl =
         response.data.sandbox_init_point || response.data.init_point;
 
