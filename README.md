@@ -23,13 +23,93 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+API de Cobranças - Sistema de gerenciamento de pagamentos com integração ao Mercado Pago.
+
+## Tecnologias
+
+- [NestJS](https://nestjs.com/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [PostgreSQL](https://www.postgresql.org/)
+- [TypeORM](https://typeorm.io/)
+- [Mercado Pago API](https://www.mercadopago.com.br/developers)
 
 ## Project setup
 
 ```bash
 $ npm install
 ```
+
+## Configuração do Mercado Pago
+
+### Opção 1: Criar Usuário de Teste (Recomendado)
+
+1. **Obtenha um Access Token de PRODUÇÃO:**
+   - Acesse: https://www.mercadopago.com.br/developers/panel/app
+   - Faça login com sua conta real do Mercado Pago
+   - Crie uma aplicação ou use uma existente
+   - Copie o **"Access Token de produção"** (começa com `APP_USR-`)
+
+2. **Configure o token temporariamente no .env:**
+   ```bash
+   MERCADO_PAGO_ACCESS_TOKEN=APP_USR-seu-token-de-producao-aqui
+   ```
+
+3. **Execute o script para criar usuário de teste:**
+   ```bash
+   npm run mp:create-test-user
+   ```
+   
+   O script irá:
+   - Criar um usuário de teste no Mercado Pago
+   - Mostrar as credenciais (email e senha)
+   - Salvar as credenciais em um arquivo JSON
+
+4. **Faça login com o usuário de teste:**
+   - Acesse: https://www.mercadopago.com.br/developers/panel/app
+   - Use o email e senha gerados pelo script
+   - Crie uma aplicação de teste
+   - Copie o **"Access Token de teste"** (começa com `TEST-`)
+
+5. **Atualize o .env com o token de teste:**
+   ```bash
+   MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-de-teste-aqui
+   ```
+
+### Opção 2: Usar Token Direto (Não Recomendado para Produção)
+
+Se você preferir pular a criação de usuário de teste:
+
+1. Acesse: https://www.mercadopago.com.br/developers/panel/app
+2. Crie uma aplicação
+3. Copie o "Access Token de teste"
+4. Configure no `.env`:
+   ```bash
+   MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-aqui
+   ```
+
+### Guia Completo
+
+Para mais detalhes, consulte: [MERCADO_PAGO_SETUP.md](./MERCADO_PAGO_SETUP.md)
+
+## Database Setup
+
+1. **Crie o banco de dados:**
+   ```bash
+   createdb exa
+   ```
+
+2. **Configure o .env:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edite o `.env` e configure suas credenciais do PostgreSQL.
+
+3. **Execute as migrações:**
+   ```bash
+   npm run build
+   npm run migration:run
+   ```
 
 ## Compile and run the project
 
@@ -43,6 +123,22 @@ $ npm run start:dev
 # production mode
 $ npm run start:prod
 ```
+
+## API Documentation
+
+Com o servidor rodando, acesse a documentação do Swagger:
+
+```
+http://localhost:3000/api
+```
+
+## Endpoints
+
+- `POST /api/payment` - Criar pagamento
+- `GET /api/payment` - Listar pagamentos
+- `GET /api/payment/:id` - Buscar pagamento por ID
+- `PUT /api/payment/:id` - Atualizar pagamento
+- `GET /health` - Health check
 
 ## Run tests
 

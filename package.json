@@ -22,14 +22,18 @@
     "migration:generate": "typeorm migration:generate",
     "migration:create": "typeorm migration:create",
     "migration:run": "typeorm migration:run -d dist/data-source.js",
-    "migration:revert": "typeorm migration:revert -d dist/data-source.js"
+    "migration:revert": "typeorm migration:revert -d dist/data-source.js",
+    "mp:create-test-user": "node create-test-user.js"
   },
   "dependencies": {
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/typeorm": "^11.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
     "dotenv": "^17.2.3",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
