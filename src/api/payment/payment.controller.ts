@@ -16,7 +16,7 @@ import {
   PaymentStatus,
 } from '../../entities/payment.entity';
 
-@ApiTags('payments')
+@ApiTags('Payment')
 @Controller('api/payment')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}

@@ -32,7 +32,7 @@ export class AppService {
         timestamp: new Date().toISOString(),
         responseTime,
       };
-    } catch (error) {
+    } catch {
       const endTime = Date.now();
       const responseTime = `${endTime - startTime}ms`;
 

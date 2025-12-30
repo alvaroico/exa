@@ -2,6 +2,13 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
+interface HealthCheckResponse {
+  status: 'UP' | 'DOWN';
+  database: string;
+  timestamp: string;
+  responseTime: string;
+}
+
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
@@ -20,7 +27,7 @@ export class AppController {
       },
     },
   })
-  async healthCheck(): Promise<any> {
+  async healthCheck(): Promise<HealthCheckResponse> {
     return this.appService.healthCheck();
   }
 }
