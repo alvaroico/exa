@@ -26,4 +26,3 @@ export class CreatePaymentPixDto {
   })
   paymentMethod: 'PIX';
 }
-

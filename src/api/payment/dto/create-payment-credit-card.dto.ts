@@ -26,4 +26,3 @@ export class CreatePaymentCreditCardDto {
   })
   paymentMethod: 'CREDIT_CARD';
 }
-

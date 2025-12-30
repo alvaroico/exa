@@ -44,7 +44,6 @@ export class Payment {
   })
   status: PaymentStatus;
 
-
   @CreateDateColumn()
   createdAt: Date;
 
