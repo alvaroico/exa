@@ -1,5 +1,7 @@
 # API de Cobranças – Integração com Mercado Pago
 
+[![Vídeo de apresentação da API](https://img.youtube.com/vi/twvdgURiR_Q/maxresdefault.jpg)](https://youtu.be/twvdgURiR_Q)
+
 API REST construída com NestJS para gerenciar o ciclo de vida de cobranças (pagamentos) com PostgreSQL/TypeORM e integração com o Mercado Pago para pagamentos via PIX e Cartão de Crédito.
 
 ## Visão Geral
