@@ -1,24 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import {
   Payment,
   PaymentMethod,
   PaymentStatus,
 } from '../../entities/payment.entity';
 import { MercadoPago } from '../../entities/mercado-pago.entity';
-import { PaymentService, PaymentWithCheckoutUrl } from './payment.service';
+import { PaymentService } from './payment.service';
 import { MercadoPagoService } from '../../external/mercado-pago/mercado-pago.service';
 
-const createMockRepo = () => ({
-  create: jest.fn(),
-  save: jest.fn(),
+const createMockRepo = <T>() => ({
+  create: jest.fn<(Partial<T> & { id?: string }) | T, [Partial<T>]>(),
+  save: jest.fn<Promise<T>, [T]>(),
 });
 
 describe('PaymentService', () => {
   let service: PaymentService;
-  let paymentRepo: any;
-  let mpRepo: any;
+  let paymentRepo: jest.Mocked<ReturnType<typeof createMockRepo<Payment>>>;
+  let mpRepo: jest.Mocked<ReturnType<typeof createMockRepo<MercadoPago>>>;
   let mpService: jest.Mocked<MercadoPagoService>;
 
   beforeEach(async () => {
@@ -43,9 +42,13 @@ describe('PaymentService', () => {
     }).compile();
 
     service = module.get<PaymentService>(PaymentService);
-    paymentRepo = module.get(getRepositoryToken(Payment));
-    mpRepo = module.get(getRepositoryToken(MercadoPago));
-    mpService = module.get(MercadoPagoService);
+    paymentRepo = module.get<
+      jest.Mocked<ReturnType<typeof createMockRepo<Payment>>>
+    >(getRepositoryToken(Payment));
+    mpRepo = module.get<
+      jest.Mocked<ReturnType<typeof createMockRepo<MercadoPago>>>
+    >(getRepositoryToken(MercadoPago));
+    mpService = module.get<jest.Mocked<MercadoPagoService>>(MercadoPagoService);
   });
 
   describe('create', () => {
@@ -79,8 +82,12 @@ describe('PaymentService', () => {
         status: PaymentStatus.PENDING,
       });
       expect(paymentRepo.save).toHaveBeenCalledWith(payment);
-      expect(mpService.createPreference).not.toHaveBeenCalled();
-      expect((result as PaymentWithCheckoutUrl).checkoutUrl).toBeNull();
+
+      // usar spy para evitar unbound-method
+      const createPreferenceSpy = jest.spyOn(mpService, 'createPreference');
+      expect(createPreferenceSpy).not.toHaveBeenCalled();
+
+      expect(result.checkoutUrl).toBeNull();
     });
 
     it('should create CREDIT_CARD payment and call MercadoPagoService', async () => {
@@ -113,7 +120,9 @@ describe('PaymentService', () => {
         payment.paymentMethod,
       );
 
-      expect(mpService.createPreference).toHaveBeenCalledWith(
+      const createPreferenceSpy = jest.spyOn(mpService, 'createPreference');
+
+      expect(createPreferenceSpy).toHaveBeenCalledWith(
         payment.id,
         Number(payment.amount),
         payment.description,
