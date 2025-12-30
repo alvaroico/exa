@@ -1,14 +1,36 @@
 version: "3.1"
 
 services:
-  PostgreSQL:
+  db:
     image: postgres:latest
+    container_name: exa-postgres
     ports:
       - "5432:5432"
     environment:
       POSTGRES_PASSWORD: "alvaro"
       POSTGRES_USER: "alvaro"
       POSTGRES_DB: "exa"
-      POSTGRES_HOST: "postgresql"
-      POSTGRES_PORT: "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alvaro -d exa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  app:
+    build: .
+    container_name: exa-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: alvaro
+      DB_PASSWORD: alvaro
+      DB_DATABASE: exa
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN}
+      BACKEND_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    command: ["sh", "-c", "npm run migration:run && node dist/main.js"]
